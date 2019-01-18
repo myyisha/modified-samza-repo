@@ -58,9 +58,13 @@ public class ApplicationRunnerMain {
       Config orgConfig = cmdLine.loadConfig(options);
       Config config = Util.rewriteConfig(orgConfig);
 
+      // modify job name for split app desc
       Map<String, String> mergedConfig = new HashMap<>(config);
       mergedConfig.put("splitPart", String.valueOf(i));
       mergedConfig.put("job.name", "word-count"+i);
+
+      // read cluster clarification, run stage on corresponnding cluster
+      mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage"+i));
       Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
 
       ApplicationRunnerOperation op = cmdLine.getOperation(options);
