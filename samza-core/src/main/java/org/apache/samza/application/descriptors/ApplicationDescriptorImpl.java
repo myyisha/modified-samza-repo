@@ -363,21 +363,30 @@ public abstract class ApplicationDescriptorImpl<S extends ApplicationDescriptor>
     addSystemDescriptor(outputDescriptor.getSystemDescriptor());
   }
 
-  public void modifyInputOutputDescriptor(int i) {
-    if (i == 0) {
-      OutputDescriptor outputDescriptor = this.outputDescriptors.get("word-count-output");
-      // modify to intermediate stream
-      outputDescriptor.setStreamId("word-count-1-partition_by-p1");
-      this.outputDescriptors.put("word-count-1-partition_by-p1", outputDescriptor);
-      this.outputDescriptors.remove("word-count-output");
-    } else {
-      InputDescriptor inputDescriptor = this.inputDescriptors.get("sample-text");
-      // modify to intermediate stream
-      inputDescriptor.setStreamId("word-count-1-partition_by-p1");
-      this.inputDescriptors.put("word-count-1-partition_by-p1", inputDescriptor);
-      this.inputDescriptors.remove("sample-text");
-    }
-  }
+//  public void modifyInputOutputDescriptor(int i) {
+//    if (i == 0) {
+//      OutputDescriptor outputDescriptor = this.outputDescriptors.get("word-count-output");
+//      // modify to intermediate stream
+//      outputDescriptor.setStreamId("word-count-1-partition_by-p1");
+//      this.outputDescriptors.put("word-count-1-partition_by-p1", outputDescriptor);
+//      this.outputDescriptors.remove("word-count-output");
+////      SystemDescriptor kafkaSystemDescriptor = this.systemDescriptors.get("kafka");
+////      kafkaSystemDescriptor
+////      this.outputDescriptors.put("word-count-1-partition_by-p1", outputDescriptor);
+//    } else {
+//      InputDescriptor inputDescriptor = this.inputDescriptors.get("sample-text");
+//      // modify to intermediate stream
+//      inputDescriptor.setStreamId("word-count-1-partition_by-p1");
+//      this.inputDescriptors.put("word-count-1-partition_by-p1", inputDescriptor);
+//      this.inputDescriptors.remove("sample-text");
+//      //------------------------- new logic -----------------------------------
+////        InputDescriptor inputDescriptor = this.inputDescriptors.get("sample-text");
+////        // modify to intermediate stream
+////        inputDescriptor.setStreamId("map-output");
+////        this.inputDescriptors.put("map-output", inputDescriptor);
+////        this.inputDescriptors.remove("sample-text");
+//    }
+//  }
 
   final void addTableDescriptor(TableDescriptor tableDescriptor) {
     String tableId = tableDescriptor.getTableId();

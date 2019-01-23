@@ -52,12 +52,12 @@ public class ApplicationRunnerMain {
   }
 
   public static void main(String[] args) throws Exception {
-    for (int i=0; i < 2; i++) {
       ApplicationRunnerCommandLine cmdLine = new ApplicationRunnerCommandLine();
       OptionSet options = cmdLine.parser().parse(args);
       Config orgConfig = cmdLine.loadConfig(options);
       Config config = Util.rewriteConfig(orgConfig);
-
+      int iterator = config.containsKey("app.split.number") ? Integer.valueOf(config.get("app.split.number")) : 1;
+      for (int i=0; i < iterator; i++) {
       // modify job name for split app desc
       Map<String, String> mergedConfig = new HashMap<>(config);
       mergedConfig.put("splitPart", String.valueOf(i));
