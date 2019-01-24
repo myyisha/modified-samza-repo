@@ -64,7 +64,13 @@ public class ApplicationRunnerMain {
       mergedConfig.put("job.name", "word-count"+i);
 
       // read cluster clarification, run stage on corresponnding cluster
-      mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage"+i));
+      if (mergedConfig.containsKey("yarn.resourcemanager.address.stage"+i)) {
+          mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage" + i));
+      }
+      // read stage container default count
+      if (mergedConfig.containsKey("job.container.count.stage"+i)) {
+          mergedConfig.put("job.container.count", mergedConfig.get("job.container.count.stage" + i));
+      }
       Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
 
       ApplicationRunnerOperation op = cmdLine.getOperation(options);
