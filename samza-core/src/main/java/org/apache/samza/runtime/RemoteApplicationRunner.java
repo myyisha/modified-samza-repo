@@ -20,17 +20,23 @@
 package org.apache.samza.runtime;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.samza.SamzaException;
+import org.apache.samza.application.ApplicationUtil;
 import org.apache.samza.application.descriptors.ApplicationDescriptor;
 import org.apache.samza.application.descriptors.ApplicationDescriptorImpl;
 import org.apache.samza.application.descriptors.ApplicationDescriptorUtil;
 import org.apache.samza.application.SamzaApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.execution.RemoteJobPlanner;
 import org.apache.samza.job.ApplicationStatus;
 import org.apache.samza.job.JobRunner;
+import org.apache.samza.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +51,10 @@ public class RemoteApplicationRunner implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteApplicationRunner.class);
   private static final long DEFAULT_SLEEP_DURATION_MS = 2000;
 
-  private final ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc;
-  private final RemoteJobPlanner planner;
+  private ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc;
+  private RemoteJobPlanner planner;
+  private final SamzaApplication app;
+  private final Config config;
 
   /**
    * Constructors a {@link RemoteApplicationRunner} to run the {@code app} with the {@code config}.
@@ -55,6 +63,8 @@ public class RemoteApplicationRunner implements ApplicationRunner {
    * @param config configuration for the application
    */
   public RemoteApplicationRunner(SamzaApplication app, Config config) {
+    this.app = app;
+    this.config = config;
     this.appDesc = ApplicationDescriptorUtil.getAppDescriptor(app, config);
     this.planner = new RemoteJobPlanner(appDesc);
   }
@@ -62,19 +72,37 @@ public class RemoteApplicationRunner implements ApplicationRunner {
   @Override
   public void run() {
     try {
-//      for (int i = 0; i < 2; i++) {
-      List<JobConfig> jobConfigs = planner.prepareJobs(Integer.valueOf(this.appDesc.getConfig().get("splitPart")));
-      if (jobConfigs.isEmpty()) {
-        throw new SamzaException("No jobs to run.");
-      }
+      int iterator = config.containsKey("app.split.number") ? Integer.valueOf(config.get("app.split.number")) : 1;
+      for (int i = 0; i < iterator; i++) {
+        // modify job name for split app desc
+        Map<String, String> mergedConfig = new HashMap<>(config);
+        mergedConfig.put("splitPart", String.valueOf(i));
+        mergedConfig.put("job.name", "word-count"+i);
 
-      // 3. submit jobs for remote execution
-      jobConfigs.forEach(jobConfig -> {
-        LOG.info("Starting job {} with config {}", jobConfig.getName(), jobConfig);
-        JobRunner runner = new JobRunner(jobConfig);
-        runner.run(true);
-      });
-//      }
+        // read cluster clarification, run stage on corresponnding cluster
+        if (mergedConfig.containsKey("yarn.resourcemanager.address.stage"+i)) {
+          mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage" + i));
+        }
+        // read stage container default count
+        if (mergedConfig.containsKey("job.container.count.stage"+i)) {
+          mergedConfig.put("job.container.count", mergedConfig.get("job.container.count.stage" + i));
+        }
+        Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
+        ApplicationDescriptorImpl<? extends ApplicationDescriptor> newAppDesc = ApplicationDescriptorUtil.getAppDescriptor(app, newConfig);
+//        newAppDesc.splitAppDesc(config.get(JobConfig.JOB_NAME()), i);
+        RemoteJobPlanner newPlanner = new RemoteJobPlanner(newAppDesc);
+        List<JobConfig> jobConfigs = newPlanner.prepareJobs(Integer.valueOf(newAppDesc.getConfig().get("splitPart")));
+        if (jobConfigs.isEmpty()) {
+          throw new SamzaException("No jobs to run.");
+        }
+
+        // 3. submit jobs for remote execution
+        jobConfigs.forEach(jobConfig -> {
+          LOG.info("Starting job {} with config {}", jobConfig.getName(), jobConfig);
+          JobRunner runner = new JobRunner(jobConfig);
+          runner.run(true);
+        });
+      }
     } catch (Throwable t) {
       throw new SamzaException("Failed to run application", t);
     }

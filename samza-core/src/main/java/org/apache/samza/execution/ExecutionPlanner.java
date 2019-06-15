@@ -219,7 +219,7 @@ public class ExecutionPlanner {
     // For this phase, we have a single job node for the whole DAG
     String jobName = config.get(JobConfig.JOB_NAME());
     String jobId = config.get(JobConfig.JOB_ID(), "1");
-    appDesc.splitAppDesc(jobName.substring(0, jobName.length() - 1), i);
+//    appDesc.splitAppDesc(jobName.substring(0, jobName.length() - 1), i);
     JobNode node = jobGraph.getOrCreateJobNode(jobName, jobId, appDesc);
 
 
