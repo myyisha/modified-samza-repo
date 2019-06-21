@@ -48,6 +48,7 @@ import org.apache.samza.operators.stream.IntermediateMessageStreamImpl;
 import org.apache.samza.serializers.KVSerde;
 import org.apache.samza.serializers.Serde;
 import org.apache.samza.table.Table;
+import org.apache.samza.operators.spec.OperatorSpec.OpCode;
 
 /**
  * This class defines:
@@ -61,8 +62,8 @@ public class StreamApplicationDescriptorImpl extends ApplicationDescriptorImpl<S
   // We use a LHMs for deterministic order in initializing and closing operators.
   private final Set<String> intermediateBroadcastStreamIds = new HashSet<>();
   private Map<String, InputOperatorSpec> inputOperators = new LinkedHashMap<>();
-  private final Map<String, OutputStreamImpl> outputStreams = new LinkedHashMap<>();
-  private final Set<String> operatorIds = new HashSet<>();
+  private Map<String, OutputStreamImpl> outputStreams = new LinkedHashMap<>();
+  private Set<String> operatorIds = new HashSet<>();
 
   /**
    * The 0-based position of the next operator in the graph.
@@ -226,6 +227,27 @@ public class StreamApplicationDescriptorImpl extends ApplicationDescriptorImpl<S
       streamIdList.addAll(this.getInputStreamIds());
       newInputOperators.put(streamIdList.get(i), inputOperators.get(streamIdList.get(i)));
       inputOperators = newInputOperators;
+
+    HashSet<OperatorSpec> operatorSpecs = new HashSet<>();
+      Set<String> newOperatorIds = new HashSet<>();
+      Map<String, OutputStreamImpl> newOutputStreams = new LinkedHashMap<>();
+      findSendTo(inputOperators.get(streamIdList.get(i)), operatorSpecs, newOperatorIds, newOutputStreams);
+      this.operatorIds = newOperatorIds;
+      this.outputStreams = newOutputStreams;
+      this.nextOpNum = this.operatorIds.size();
+  }
+
+  private void findSendTo(OperatorSpec operatorSpec, Set<OperatorSpec> specs, Set<String> ids, Map<String, OutputStreamImpl> streams) {
+    Collection<OperatorSpec> registeredOperatorSpecs = operatorSpec.getRegisteredOperatorSpecs();
+    for (OperatorSpec registeredOperatorSpec : registeredOperatorSpecs) {
+      specs.add(registeredOperatorSpec);
+      ids.add(registeredOperatorSpec.getOpId());
+      if (registeredOperatorSpec.getOpCode() == OpCode.SEND_TO) {
+        String steamId = ((OutputOperatorSpec) registeredOperatorSpec).getOutputStream().getStreamId();
+        streams.put(steamId, outputStreams.get(steamId));
+      }
+      findSendTo(registeredOperatorSpec, specs, ids, streams);
+    }
   }
 
   public Map<String, InputOperatorSpec> getInputOperators() {

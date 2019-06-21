@@ -89,7 +89,8 @@ public class RemoteApplicationRunner implements ApplicationRunner {
         }
         Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
         ApplicationDescriptorImpl<? extends ApplicationDescriptor> newAppDesc = ApplicationDescriptorUtil.getAppDescriptor(app, newConfig);
-//        newAppDesc.splitAppDesc(config.get(JobConfig.JOB_NAME()), i);
+
+        newAppDesc.splitAppDesc(config.get(JobConfig.JOB_NAME()), i);
         RemoteJobPlanner newPlanner = new RemoteJobPlanner(newAppDesc);
         List<JobConfig> jobConfigs = newPlanner.prepareJobs(Integer.valueOf(newAppDesc.getConfig().get("splitPart")));
         if (jobConfigs.isEmpty()) {

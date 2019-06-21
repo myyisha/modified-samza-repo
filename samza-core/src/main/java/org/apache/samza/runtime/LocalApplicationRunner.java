@@ -89,6 +89,9 @@ public class LocalApplicationRunner implements ApplicationRunner {
     try {
 //      for (int i = 0; i < 2; i++) {
 
+      int i = Integer.valueOf(this.appDesc.getConfig().get("splitPart"));
+      this.appDesc.splitAppDesc("Job", i);
+
       List<JobConfig> jobConfigs = planner.prepareJobs(Integer.valueOf(this.appDesc.getConfig().get("splitPart")));
 
       // create the StreamProcessors

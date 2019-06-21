@@ -284,12 +284,10 @@ private[kafka_deprecated] class KafkaSystemConsumer(
       }
 
       if(fetchLimitByBytesEnabled ) {
-        val ime = new IncomingMessageEnvelope(systemStreamPartition, offset, key, message, getMessageSize(msg.message))
-        ime.setTimestamp(if (!msg.message.isNull) msg.message.timestamp else 0L)
+        val ime = new IncomingMessageEnvelope(systemStreamPartition, offset, key, message, getMessageSize(msg.message), msg.message.timestamp)
         put(systemStreamPartition, ime)
       } else {
-        val ime = new IncomingMessageEnvelope(systemStreamPartition, offset, key, message)
-        ime.setTimestamp(if (!msg.message.isNull) msg.message.timestamp else 0L)
+        val ime = new IncomingMessageEnvelope(systemStreamPartition, offset, key, message, msg.message.timestamp)
         put(systemStreamPartition, ime)
       }
 
