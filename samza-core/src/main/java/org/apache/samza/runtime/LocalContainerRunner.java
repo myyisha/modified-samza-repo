@@ -85,9 +85,11 @@ public class LocalContainerRunner {
 
     ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc =
         ApplicationDescriptorUtil.getAppDescriptor(ApplicationUtil.fromConfig(config), config);
-    int splitPart = Integer.valueOf(jobConfig.get("splitPart"));
-    log.info(String.format("splitPart is: %s", jobConfig.get("splitPart")));
-    appDesc.splitAppDesc(jobName, splitPart);
+    if (jobConfig.containsKey("splitPart")) {
+      int splitPart = Integer.valueOf(jobConfig.get("splitPart"));
+      log.info(String.format("splitPart is: %s", jobConfig.get("splitPart")));
+      appDesc.splitAppDesc(jobName, splitPart);
+    }
     run(appDesc, containerId, jobModel, config);
 
     System.exit(0);

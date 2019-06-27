@@ -137,104 +137,54 @@ public class StreamApplicationDescriptorImpl extends ApplicationDescriptorImpl<S
 
   @Override
   public void splitAppDesc(String jobName, int i) {
+    // construct minimal split JobGrpah set
+    Collection<InputOperatorSpec> inputOperatorSpecs = this.inputOperators.values();
+    List<SubJobGraph> subJobGraphArrayList = new ArrayList<>();
 
-//    // TODO:
-//    if (i == 0) {
-////      this.inputOperators.remove("word-count-1-partition_by-p1");
-////      this.outputStreams.remove("word-count-output");
-////
-////      this.operatorIds.remove("word-count-1-input-2");
-////      this.operatorIds.remove("word-count-1-map-3");
-////      this.operatorIds.remove("word-count-1-flat_map-4");
-////      this.operatorIds.remove("word-count-1-window-count");
-////      this.operatorIds.remove("word-count-1-map-6");
-////      this.operatorIds.remove("word-count-1-send_to-7");
-////
-////      this.nextOpNum = 2;
-////      this.modifyInputOutputDescriptor(i);
-////      // add Send to operator in appDesc
-////      OperatorSpec spec = this.getInputOperators().get("sample-text");
-////      Collection<OperatorSpec> nextOperators = spec.getRegisteredOperatorSpecs();
-////      OperatorSpec nextOperator = nextOperators.iterator().next();
-////      MessageStream constructedMSI = new MessageStreamImpl<>(this, nextOperator);
-////      Serde serde = new StringSerde();
-////      KV<Serde, Serde> kvSerdes = getOrCreateStreamSerdes("map-output", serde);
-//////      boolean isKeyed = serde instanceof KVSerde;
-//////      outputStreams.put("map-output", new OutputStreamImpl("map-output", kvSerdes.getKey(), kvSerdes.getValue(), isKeyed));
-////      String opId = "word-count-1-send_to-3";
-////      OutputOperatorSpec<String> op = OperatorSpecs.createSendToOperatorSpec(
-////              (OutputStreamImpl<String>) outputStreams.get("map-output"), opId);
-////      this.operatorIds.add(opId);
-//////      this.inputOperators.get("sample-text").getRegisteredOperatorSpecs().iterator().next().registerNextOperatorSpec(op);
-////      this.nextOpNum++;
-////      ((MessageStreamImpl) constructedMSI).getOperatorSpec().registerNextOperatorSpec(op);
-//
-//      // ---------------------------------- generalized method--------------------------------------------------------------
-//
-////        this.inputOperators.remove("word-count-1-partition_by-p1");
-////        this.outputStreams.remove("word-count-output");
-////        this.operatorIds.remove("word-count-1-input-2");
-////        this.operatorIds.remove("word-count-1-map-3");
-////        this.operatorIds.remove("word-count-1-flat_map-4");
-////        this.operatorIds.remove("word-count-1-window-count");
-////        this.operatorIds.remove("word-count-1-map-6");
-////        this.operatorIds.remove("word-count-1-send_to-7");
-////
-////        this.nextOpNum = 2;
-////        this.modifyInputOutputDescriptor(i);
-//    } else {
-//        this.inputOperators.remove("sample-text");
-//        this.outputStreams.remove("word-count-1-partition_by-p1");
-//
-//        this.operatorIds.remove("word-count-1-input-0");
-//        this.operatorIds.remove("word-count-1-partition_by-p1");
-//
-//        this.nextOpNum = 6;
-//        this.modifyInputOutputDescriptor(i);
-//        // -------------------------------- new version ------------------------
-////        OperatorSpec spec = this.getInputOperators().get("sample-text");
-////        Collection<OperatorSpec> nextOperators = spec.getRegisteredOperatorSpecs();
-////        OperatorSpec nextOperator = nextOperators.iterator().next();
-////        Collection<OperatorSpec>  newNextOperators = nextOperator.getRegisteredOperatorSpecs();
-////        // flatMap
-////        OperatorSpec newNextOperator = newNextOperators.iterator().next();
-//////        while(nextOperator != null) {
-//////            Collection<OperatorSpec>  newNextOperators = nextOperator.getRegisteredOperatorSpecs();
-//////            nextOperator = newNextOperators.iterator().next();
-//////        }
-////        String opId = "word-count-1-input-1";
-////        KV<Serde, Serde> kvSerdes = KV.of(new StringSerde(), new StringSerde());
-////        InputOperatorSpec inputOperatorSpec =
-////                OperatorSpecs.createInputOperatorSpec("map-output", kvSerdes.getKey(), kvSerdes.getValue(),
-////                        null, true, opId);
-////        inputOperators.remove("sample-text");
-////        inputOperators.put("map-output", inputOperatorSpec);
-////        operatorIds.add(opId);
-////        operatorIds.remove("word-count-1-input-0");
-//////        this.nextOpNum--;
-////        this.modifyInputOutputDescriptor(i);
-////
-////        MessageStream constructedMSI = new MessageStreamImpl<>(this, inputOperatorSpec);
-//////        StreamOperatorSpec<KV<String, String>, String> mapOp = OperatorSpecs.createMapOperatorSpec(kv -> { return kv.value;}, "word-count-1-map-1");
-//////        ((MessageStreamImpl) constructedMSI).getOperatorSpec().registerNextOperatorSpec(mapOp);
-////        ((MessageStreamImpl) constructedMSI).getOperatorSpec().registerNextOperatorSpec(nextOperator);
-//////        MessageStream newConstructedMSI = new MessageStreamImpl<>(this, mapOp);
-//////        ((MessageStreamImpl) newConstructedMSI).getOperatorSpec().registerNextOperatorSpec(newNextOperator);
-//    }
+    List<String> streamIdList = new ArrayList<>();
+    streamIdList.addAll(this.getInputStreamIds());
 
+    // find all inputoperator that goes to the samza outputstream
+    for (String inputOperatorId : streamIdList) {
+      InputOperatorSpec curInputOperator = inputOperators.get(inputOperatorId);
       Map<String, InputOperatorSpec> newInputOperators = new LinkedHashMap<>();
-      List<String> streamIdList = new ArrayList<>();
-      streamIdList.addAll(this.getInputStreamIds());
-      newInputOperators.put(streamIdList.get(i), inputOperators.get(streamIdList.get(i)));
-      inputOperators = newInputOperators;
+      newInputOperators.put(inputOperatorId, curInputOperator);
 
-    HashSet<OperatorSpec> operatorSpecs = new HashSet<>();
+      HashSet<OperatorSpec> operatorSpecs = new HashSet<>();
       Set<String> newOperatorIds = new HashSet<>();
       Map<String, OutputStreamImpl> newOutputStreams = new LinkedHashMap<>();
-      findSendTo(inputOperators.get(streamIdList.get(i)), operatorSpecs, newOperatorIds, newOutputStreams);
-      this.operatorIds = newOperatorIds;
-      this.outputStreams = newOutputStreams;
-      this.nextOpNum = this.operatorIds.size();
+      findSendTo(curInputOperator, operatorSpecs, newOperatorIds, newOutputStreams);
+      // if output stream is same with previous one, place into the same subJobGraph
+      boolean isExist = false;
+      for (SubJobGraph subJobGraph : subJobGraphArrayList) {
+        for (String streamId : newOutputStreams.keySet()) {
+          if (subJobGraph.getOutputStreams().containsKey(streamId)) {
+            subJobGraph.addInputOperators(newInputOperators);
+            subJobGraph.addOutputStreams(newOutputStreams);
+            subJobGraph.addOperatorIds(newOperatorIds);
+            isExist = true;
+          }
+        }
+      }
+      // if output stream is unique, new a subJobGraph
+      if (!isExist) {
+        subJobGraphArrayList.add(new SubJobGraph(newInputOperators, newOutputStreams, newOperatorIds));
+      }
+    }
+
+//    Map<String, InputOperatorSpec> newInputOperators = new LinkedHashMap<>();
+//    newInputOperators.put(streamIdList.get(i), inputOperators.get(streamIdList.get(i)));
+    SubJobGraph curSubJobGraph = subJobGraphArrayList.get(i);
+    inputOperators = curSubJobGraph.getInputOperators();
+
+//    HashSet<OperatorSpec> operatorSpecs = new HashSet<>();
+//    Set<String> newOperatorIds = new HashSet<>();
+//    Map<String, OutputStreamImpl> newOutputStreams = new LinkedHashMap<>();
+//
+//    findSendTo(inputOperators.get(streamIdList.get(i)), operatorSpecs, newOperatorIds, newOutputStreams);
+    this.operatorIds = curSubJobGraph.getOperatorIds();
+    this.outputStreams = curSubJobGraph.getOutputStreams();
+    this.nextOpNum = this.operatorIds.size();
   }
 
   private void findSendTo(OperatorSpec operatorSpec, Set<OperatorSpec> specs, Set<String> ids, Map<String, OutputStreamImpl> streams) {

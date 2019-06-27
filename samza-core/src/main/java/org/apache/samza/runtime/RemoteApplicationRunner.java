@@ -73,36 +73,50 @@ public class RemoteApplicationRunner implements ApplicationRunner {
   public void run() {
     try {
       int iterator = config.containsKey("app.split.number") ? Integer.valueOf(config.get("app.split.number")) : 1;
-      for (int i = 0; i < iterator; i++) {
-        // modify job name for split app desc
-        Map<String, String> mergedConfig = new HashMap<>(config);
-        mergedConfig.put("splitPart", String.valueOf(i));
-        mergedConfig.put("job.name", "word-count"+i);
+      if (iterator != 1) {
+          for (int i = 0; i < iterator; i++) {
+              // modify job name for split app desc
+              Map<String, String> mergedConfig = new HashMap<>(config);
+              mergedConfig.put("splitPart", String.valueOf(i));
+              mergedConfig.put("job.name", config.get("job.name") + i);
 
-        // read cluster clarification, run stage on corresponnding cluster
-        if (mergedConfig.containsKey("yarn.resourcemanager.address.stage"+i)) {
-          mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage" + i));
-        }
-        // read stage container default count
-        if (mergedConfig.containsKey("job.container.count.stage"+i)) {
-          mergedConfig.put("job.container.count", mergedConfig.get("job.container.count.stage" + i));
-        }
-        Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
-        ApplicationDescriptorImpl<? extends ApplicationDescriptor> newAppDesc = ApplicationDescriptorUtil.getAppDescriptor(app, newConfig);
+              // read cluster clarification, run stage on corresponnding cluster
+              if (mergedConfig.containsKey("yarn.resourcemanager.address.stage" + i)) {
+                  mergedConfig.put("yarn.resourcemanager.address", mergedConfig.get("yarn.resourcemanager.address.stage" + i));
+              }
+              // read stage container default count
+              if (mergedConfig.containsKey("job.container.count.stage" + i)) {
+                  mergedConfig.put("job.container.count", mergedConfig.get("job.container.count.stage" + i));
+              }
+              Config newConfig = Util.rewriteConfig(new MapConfig(mergedConfig));
+              ApplicationDescriptorImpl<? extends ApplicationDescriptor> newAppDesc = ApplicationDescriptorUtil.getAppDescriptor(app, newConfig);
 
-        newAppDesc.splitAppDesc(config.get(JobConfig.JOB_NAME()), i);
-        RemoteJobPlanner newPlanner = new RemoteJobPlanner(newAppDesc);
-        List<JobConfig> jobConfigs = newPlanner.prepareJobs(Integer.valueOf(newAppDesc.getConfig().get("splitPart")));
-        if (jobConfigs.isEmpty()) {
-          throw new SamzaException("No jobs to run.");
-        }
+              newAppDesc.splitAppDesc(config.get(JobConfig.JOB_NAME()), i);
+              RemoteJobPlanner newPlanner = new RemoteJobPlanner(newAppDesc);
+              List<JobConfig> jobConfigs = newPlanner.prepareJobs(Integer.valueOf(newAppDesc.getConfig().get("splitPart")));
+              if (jobConfigs.isEmpty()) {
+                  throw new SamzaException("No jobs to run.");
+              }
 
-        // 3. submit jobs for remote execution
-        jobConfigs.forEach(jobConfig -> {
-          LOG.info("Starting job {} with config {}", jobConfig.getName(), jobConfig);
-          JobRunner runner = new JobRunner(jobConfig);
-          runner.run(true);
-        });
+              // 3. submit jobs for remote execution
+              jobConfigs.forEach(jobConfig -> {
+                  LOG.info("Starting job {} with config {}", jobConfig.getName(), jobConfig);
+                  JobRunner runner = new JobRunner(jobConfig);
+                  runner.run(true);
+              });
+          }
+      } else {
+          List<JobConfig> jobConfigs = planner.prepareJobs(iterator);
+          if (jobConfigs.isEmpty()) {
+              throw new SamzaException("No jobs to run.");
+          }
+
+          // 3. submit jobs for remote execution
+          jobConfigs.forEach(jobConfig -> {
+              LOG.info("Starting job {} with config {}", jobConfig.getName(), jobConfig);
+              JobRunner runner = new JobRunner(jobConfig);
+              runner.run(true);
+          });
       }
     } catch (Throwable t) {
       throw new SamzaException("Failed to run application", t);
